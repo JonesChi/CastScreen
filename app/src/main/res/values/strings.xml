@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">CastScreen</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="select">Select</string>
+    <string name="action_start">Start</string>
+    <string name="action_stop">Stop</string>
+    <string name="connect_failed">Failed to connect to %1$s</string>
+    <string name="receiver">Receiver %1$s</string>
+    <string name="no_receiver">No receiver selected</string>
+
+    <string name="user_cancelled">User cancelled</string>
+</resources>
