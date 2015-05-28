@@ -10,4 +10,16 @@
     <string name="no_receiver">No receiver selected</string>
 
     <string name="user_cancelled">User cancelled</string>
+
+    <string-array name="resolution_options">
+        <item>1280x720 @ 320</item>
+        <item>800x480 @ 160</item>
+    </string-array>
+
+    <string-array name="bitrate_options">
+        <item>6 Mbps</item>
+        <item>4 Mbps</item>
+        <item>2 Mbps</item>
+        <item>1 Mbps</item>
+    </string-array>
 </resources>
