@@ -34,11 +34,20 @@ public class CastService extends Service {
     private ArrayList<Messenger> mClients = new ArrayList<Messenger>();
 
     // 1280x720@25
-    private static final byte[] H264_PREDEFINED_HEADER = {
+    private static final byte[] H264_PREDEFINED_HEADER_1280x720 = {
             (byte)0x21, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
             (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x01,
             (byte)0x67, (byte)0x42, (byte)0x80, (byte)0x20, (byte)0xda, (byte)0x01, (byte)0x40, (byte)0x16,
             (byte)0xe8, (byte)0x06, (byte)0xd0, (byte)0xa1, (byte)0x35, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x01, (byte)0x68, (byte)0xce, (byte)0x06, (byte)0xe2, (byte)0x32, (byte)0x24, (byte)0x00,
+            (byte)0x00, (byte)0x7a, (byte)0x83, (byte)0x3d, (byte)0xae, (byte)0x37, (byte)0x00, (byte)0x00};
+
+    // 800x480@25
+    private static final byte[] H264_PREDEFINED_HEADER_800x480 = {
+            (byte)0x21, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x01,
+            (byte)0x67, (byte)0x42, (byte)0x80, (byte)0x20, (byte)0xda, (byte)0x03, (byte)0x20, (byte)0xf6,
+            (byte)0x80, (byte)0x6d, (byte)0x0a, (byte)0x13, (byte)0x50, (byte)0x00, (byte)0x00, (byte)0x00,
             (byte)0x01, (byte)0x68, (byte)0xce, (byte)0x06, (byte)0xe2, (byte)0x32, (byte)0x24, (byte)0x00,
             (byte)0x00, (byte)0x7a, (byte)0x83, (byte)0x3d, (byte)0xae, (byte)0x37, (byte)0x00, (byte)0x00};
 
@@ -322,7 +331,17 @@ public class CastService extends Service {
                     OutputStreamWriter osw = new OutputStreamWriter(mSocketOutputStream);
                     osw.write("POST\r\n");
                     osw.flush();
-                    mSocketOutputStream.write(H264_PREDEFINED_HEADER);
+                    if (mSelectedWidth == 1280 && mSelectedHeight == 720) {
+                        mSocketOutputStream.write(H264_PREDEFINED_HEADER_1280x720);
+                    } else if (mSelectedWidth == 800 && mSelectedHeight == 480) {
+                        mSocketOutputStream.write(H264_PREDEFINED_HEADER_800x480);
+                    } else {
+                        Log.e(TAG, "Unknown width: " + mSelectedWidth + ", height: " + mSelectedHeight);
+                        mSocketOutputStream.close();
+                        mSocket.close();
+                        mSocket = null;
+                        mSocketOutputStream = null;
+                    }
                     return;
                 } catch (UnknownHostException e) {
                     e.printStackTrace();
