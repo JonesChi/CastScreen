@@ -315,13 +315,16 @@ public class MainActivity extends Activity {
         if (mServiceMessenger == null) {
             return;
         }
+        final Intent stopCastIntent = new Intent(Common.ACTION_STOP_CAST);
+        sendBroadcast(stopCastIntent);
+        /*
         try {
             Message msg = Message.obtain(null, Common.MSG_STOP_CAST);
             mServiceMessenger.send(msg);
         } catch (RemoteException e) {
             Log.e(TAG, "Failed to send stop message to service");
             e.printStackTrace();
-        }
+        }*/
     }
 
     private void startService() {
@@ -374,30 +377,31 @@ public class MainActivity extends Activity {
                     DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);
                     try {
                         discoverUdpSocket.receive(receivePacket);
-                    } catch (SocketTimeoutException e) {
-                    }
-                    Log.d(TAG, "Receive discover response, length: " + receivePacket.getLength());
-                    if (receivePacket.getLength() > 9) {
-                        String respMsg = new String(receivePacket.getData());
-                        Log.d(TAG, "Discover response message: " + respMsg);
-                        try {
-                            JSONObject json = new JSONObject(respMsg);
-                            String name = json.getString("name");
-                            String ip = json.getString("id");
-                            String width = json.getString("width");
-                            String height = json.getString("height");
-                            mDiscoverdMap.put(name, ip);
-                            mHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mDiscoverAdapter.clear();
-                                    mDiscoverAdapter.addAll(mDiscoverdMap.keySet());
-                                }
-                            });
-                            Log.d(TAG, "Got receiver name: " + name + ", ip: " + ip + ", width: " + width + ", height: " + height);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
+                        String ip = receivePacket.getAddress().getHostAddress();
+                        Log.d(TAG, "Receive discover response from " + ip + ", length: " + receivePacket.getLength());
+                        if (receivePacket.getLength() > 9) {
+                            String respMsg = new String(receivePacket.getData());
+                            Log.d(TAG, "Discover response message: " + respMsg);
+                            try {
+                                JSONObject json = new JSONObject(respMsg);
+                                String name = json.getString("name");
+                                //String id = json.getString("id");
+                                String width = json.getString("width");
+                                String height = json.getString("height");
+                                mDiscoverdMap.put(name, ip);
+                                mHandler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mDiscoverAdapter.clear();
+                                        mDiscoverAdapter.addAll(mDiscoverdMap.keySet());
+                                    }
+                                });
+                                Log.d(TAG, "Got receiver name: " + name + ", ip: " + ip + ", width: " + width + ", height: " + height);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
                         }
+                    } catch (SocketTimeoutException e) {
                     }
 
                     Thread.sleep(3000);

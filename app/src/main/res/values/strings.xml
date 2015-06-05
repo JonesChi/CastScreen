@@ -8,6 +8,7 @@
     <string name="connect_failed">Failed to connect to %1$s</string>
     <string name="receiver">Receiver %1$s</string>
     <string name="no_receiver">No receiver selected</string>
+    <string name="casting_screen">Casting screen</string>
 
     <string name="user_cancelled">User cancelled</string>
 

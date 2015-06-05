@@ -1,9 +1,14 @@
 package com.yschi.castscreen;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
@@ -29,9 +34,17 @@ import java.util.ArrayList;
 
 public class CastService extends Service {
     private final String TAG = "CastService";
+    private final int NT_ID_CASTING = 0;
     private Handler mHandler = new Handler(new ServiceHandlerCallback());
     private Messenger mMessenger = new Messenger(mHandler);
     private ArrayList<Messenger> mClients = new ArrayList<Messenger>();
+    private IntentFilter mBroadcastIntentFilter;
+
+    private static final String HTTP_MESSAGE_TEMPLATE = "POST /api/v1/h264 HTTP/1.1\r\n" +
+                                                        "Connection: close\r\n" +
+                                                        "X-WIDTH: %1$d\r\n" +
+                                                        "X-HEIGHT: %2$d\r\n" +
+                                                        "\r\n";
 
     // 1280x720@25
     private static final byte[] H264_PREDEFINED_HEADER_1280x720 = {
@@ -101,17 +114,38 @@ public class CastService extends Service {
         }
     }
 
+    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            Log.d(TAG, "Service receive broadcast action: " + action);
+            if (action == null) {
+                return;
+            }
+            if (Common.ACTION_STOP_CAST.equals(action)) {
+                stopScreenCapture();
+                closeSocket();
+                stopSelf();
+            }
+        }
+    };
+
     @Override
     public void onCreate() {
         super.onCreate();
         mMediaProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        mBroadcastIntentFilter = new IntentFilter();
+        mBroadcastIntentFilter.addAction(Common.ACTION_STOP_CAST);
+        registerReceiver(mBroadcastReceiver, mBroadcastIntentFilter);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Log.d(TAG, "Destroy service");
         stopScreenCapture();
         closeSocket();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -146,10 +180,31 @@ public class CastService extends Service {
         return mMessenger.getBinder();
     }
 
+    private void showNotification() {
+        final Intent notificationIntent = new Intent(Common.ACTION_STOP_CAST);
+        PendingIntent notificationPendingIntent = PendingIntent.getBroadcast(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification.Builder builder = new Notification.Builder(this);
+        builder.setSmallIcon(R.mipmap.ic_launcher)
+                .setDefaults(Notification.DEFAULT_ALL)
+                .setOnlyAlertOnce(true)
+                .setOngoing(true)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(getString(R.string.casting_screen))
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.action_stop), notificationPendingIntent);
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(NT_ID_CASTING, builder.build());
+    }
+
+    private void dismissNotification() {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(NT_ID_CASTING);
+    }
+
     private boolean startScreenCapture() {
         if (mResultCode != 0 && mResultData != null) {
             setUpMediaProjection();
             startRecording();
+            showNotification();
             return true;
         }
         return false;
@@ -280,6 +335,7 @@ public class CastService extends Service {
     }
 
     private void stopScreenCapture() {
+        dismissNotification();
         releaseEncoders();
         closeSocket();
         if (mVirtualDisplay == null) {
@@ -329,7 +385,7 @@ public class CastService extends Service {
                     mSocket = new Socket(serverAddr, Common.VIEWER_PORT);
                     mSocketOutputStream = mSocket.getOutputStream();
                     OutputStreamWriter osw = new OutputStreamWriter(mSocketOutputStream);
-                    osw.write("POST\r\n");
+                    osw.write(String.format(HTTP_MESSAGE_TEMPLATE, mSelectedWidth, mSelectedHeight));
                     osw.flush();
                     if (mSelectedWidth == 1280 && mSelectedHeight == 720) {
                         mSocketOutputStream.write(H264_PREDEFINED_HEADER_1280x720);

@@ -31,4 +31,6 @@ public class Common {
     public static final String EXTRA_SCREEN_HEIGHT = "screen_height";
     public static final String EXTRA_SCREEN_DPI = "screen_dpi";
     public static final String EXTRA_VIDEO_BITRATE = "video_bitrate";
+
+    public static final String ACTION_STOP_CAST = "com.yschi.castscreen.ACTION_STOP_CAST";
 }
