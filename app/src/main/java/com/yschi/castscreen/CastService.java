@@ -68,6 +68,7 @@ public class CastService extends Service {
     private String mReceiverIp;
     private int mResultCode;
     private Intent mResultData;
+    private String mSelectedFormat;
     private int mSelectedWidth;
     private int mSelectedHeight;
     private int mSelectedDpi;
@@ -83,6 +84,7 @@ public class CastService extends Service {
     private Socket mSocket;
     private OutputStream mSocketOutputStream;
     private BufferedOutputStream mFileOutputStream;
+    private IvfWriter mIvfWriter;
     private Handler mDrainHandler = new Handler();
     private Runnable mDrainEncoderRunnable = new Runnable() {
         @Override
@@ -164,6 +166,10 @@ public class CastService extends Service {
         mSelectedHeight = intent.getIntExtra(Common.EXTRA_SCREEN_HEIGHT, Common.DEFAULT_SCREEN_HEIGHT);
         mSelectedDpi = intent.getIntExtra(Common.EXTRA_SCREEN_DPI, Common.DEFAULT_SCREEN_DPI);
         mSelectedBitrate = intent.getIntExtra(Common.EXTRA_VIDEO_BITRATE, Common.DEFAULT_VIDEO_BITRATE);
+        mSelectedFormat = intent.getStringExtra(Common.EXTRA_VIDEO_FORMAT);
+        if (mSelectedFormat == null) {
+            mSelectedFormat = Common.DEFAULT_VIDEO_MIME_TYPE;
+        }
         if (!createSocket()) {
             Log.e(TAG, "Failed to create socket to receiver, ip: " + mReceiverIp);
             return START_NOT_STICKY;
@@ -235,7 +241,7 @@ public class CastService extends Service {
 
     private void prepareVideoEncoder() {
         mVideoBufferInfo = new MediaCodec.BufferInfo();
-        MediaFormat format = MediaFormat.createVideoFormat(Common.DEFAULT_VIDEO_MIME_TYPE, mSelectedWidth, mSelectedHeight);
+        MediaFormat format = MediaFormat.createVideoFormat(mSelectedFormat, mSelectedWidth, mSelectedHeight);
         int frameRate = Common.DEFAULT_VIDEO_FPS;
 
         // Set some required properties. The media codec may fail if these aren't defined.
@@ -249,7 +255,7 @@ public class CastService extends Service {
 
         // Create a MediaCodec encoder and configure it. Get a Surface we can use for recording into.
         try {
-            mVideoEncoder = MediaCodec.createEncoderByType(Common.DEFAULT_VIDEO_MIME_TYPE);
+            mVideoEncoder = MediaCodec.createEncoderByType(mSelectedFormat);
             mVideoEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             mInputSurface = mVideoEncoder.createInputSurface();
             mVideoEncoder.start();
@@ -297,9 +303,16 @@ public class CastService extends Service {
                         try {
                             byte[] b = new byte[encodedData.remaining()];
                             encodedData.get(b);
-                            mSocketOutputStream.write(b);
+                            if (mIvfWriter != null) {
+                                mIvfWriter.writeFrame(b, mVideoBufferInfo.presentationTimeUs);
+                            } else {
+                                mSocketOutputStream.write(b);
+                            }
                         } catch (IOException e) {
+                            Log.d(TAG, "Failed to write data to socket, stop casting");
                             e.printStackTrace();
+                            stopScreenCapture();
+                            return false;
                         }
                     }
                     /*
@@ -331,7 +344,7 @@ public class CastService extends Service {
         }
 
         mDrainHandler.postDelayed(mDrainEncoderRunnable, 10);
-        return false;
+        return true;
     }
 
     private void stopScreenCapture() {
@@ -370,6 +383,9 @@ public class CastService extends Service {
             mMediaProjection.stop();
             mMediaProjection = null;
         }
+        if (mIvfWriter != null) {
+            mIvfWriter = null;
+        }
         mResultCode = 0;
         mResultData = null;
         mVideoBufferInfo = null;
@@ -387,12 +403,24 @@ public class CastService extends Service {
                     OutputStreamWriter osw = new OutputStreamWriter(mSocketOutputStream);
                     osw.write(String.format(HTTP_MESSAGE_TEMPLATE, mSelectedWidth, mSelectedHeight));
                     osw.flush();
-                    if (mSelectedWidth == 1280 && mSelectedHeight == 720) {
-                        mSocketOutputStream.write(H264_PREDEFINED_HEADER_1280x720);
-                    } else if (mSelectedWidth == 800 && mSelectedHeight == 480) {
-                        mSocketOutputStream.write(H264_PREDEFINED_HEADER_800x480);
+                    mSocketOutputStream.flush();
+                    if (mSelectedFormat.equals(MediaFormat.MIMETYPE_VIDEO_AVC)) {
+                        if (mSelectedWidth == 1280 && mSelectedHeight == 720) {
+                            mSocketOutputStream.write(H264_PREDEFINED_HEADER_1280x720);
+                        } else if (mSelectedWidth == 800 && mSelectedHeight == 480) {
+                            mSocketOutputStream.write(H264_PREDEFINED_HEADER_800x480);
+                        } else {
+                            Log.e(TAG, "Unknown width: " + mSelectedWidth + ", height: " + mSelectedHeight);
+                            mSocketOutputStream.close();
+                            mSocket.close();
+                            mSocket = null;
+                            mSocketOutputStream = null;
+                        }
+                    } else if (mSelectedFormat.equals(MediaFormat.MIMETYPE_VIDEO_VP8)) {
+                        mIvfWriter = new IvfWriter(mSocketOutputStream, mSelectedWidth, mSelectedHeight);
+                        mIvfWriter.writeHeader();
                     } else {
-                        Log.e(TAG, "Unknown width: " + mSelectedWidth + ", height: " + mSelectedHeight);
+                        Log.e(TAG, "Unknown format: " + mSelectedFormat);
                         mSocketOutputStream.close();
                         mSocket.close();
                         mSocket = null;

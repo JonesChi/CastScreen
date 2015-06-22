@@ -12,6 +12,11 @@
 
     <string name="user_cancelled">User cancelled</string>
 
+    <string-array name="format_options">
+        <item>H264</item>
+        <item>IVF</item>
+    </string-array>
+
     <string-array name="resolution_options">
         <item>1280x720 @ 320</item>
         <item>800x480 @ 160</item>

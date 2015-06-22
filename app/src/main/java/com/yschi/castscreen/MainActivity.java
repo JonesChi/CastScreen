@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.MediaFormat;
 import android.media.projection.MediaProjectionManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -42,9 +43,16 @@ public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 
     private static final String PREF_COMMON = "common";
+    private static final String PREF_KEY_INPUT_RECEIVER = "input_receiver";
+    private static final String PREF_KEY_FORMAT = "format";
     private static final String PREF_KEY_RECEIVER = "receiver";
     private static final String PREF_KEY_RESOLUTION = "resolution";
     private static final String PREF_KEY_BITRATE = "bitrate";
+
+    private static final String[] FORMAT_OPTIONS = {
+            MediaFormat.MIMETYPE_VIDEO_AVC,
+            MediaFormat.MIMETYPE_VIDEO_VP8
+    };
 
     private static final int[][] RESOLUTION_OPTIONS = {
             {1280, 720, 320},
@@ -71,6 +79,7 @@ public class MainActivity extends Activity {
     private ListView mDiscoverListView;
     private ArrayAdapter<String> mDiscoverAdapter;
     private HashMap<String, String> mDiscoverdMap;
+    private String mSelectedFormat = FORMAT_OPTIONS[0];
     private int mSelectedWidth = RESOLUTION_OPTIONS[0][0];
     private int mSelectedHeight = RESOLUTION_OPTIONS[0][1];
     private int mSelectedDpi = RESOLUTION_OPTIONS[0][2];
@@ -152,10 +161,32 @@ public class MainActivity extends Activity {
                     mReceiverIp = ipEditText.getText().toString();
                     Log.d(TAG, "Using ip: " + mReceiverIp);
                     updateReceiverStatus();
+                    mContext.getSharedPreferences(PREF_COMMON, 0).edit().putString(PREF_KEY_INPUT_RECEIVER, mReceiverIp).commit();
                     mContext.getSharedPreferences(PREF_COMMON, 0).edit().putString(PREF_KEY_RECEIVER, mReceiverIp).commit();
                 }
             }
         });
+        ipEditText.setText(mContext.getSharedPreferences(PREF_COMMON, 0).getString(PREF_KEY_INPUT_RECEIVER, ""));
+
+        Spinner formatSpinner = (Spinner) findViewById(R.id.format_spinner);
+        ArrayAdapter<CharSequence> formatAdapter = ArrayAdapter.createFromResource(this,
+                R.array.format_options, android.R.layout.simple_spinner_item);
+        formatAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        formatSpinner.setAdapter(formatAdapter);
+        formatSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mSelectedFormat = FORMAT_OPTIONS[i];
+                mContext.getSharedPreferences(PREF_COMMON, 0).edit().putInt(PREF_KEY_FORMAT, i).commit();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+                mSelectedFormat = FORMAT_OPTIONS[0];
+                mContext.getSharedPreferences(PREF_COMMON, 0).edit().putInt(PREF_KEY_FORMAT, 0).commit();
+            }
+        });
+        formatSpinner.setSelection(mContext.getSharedPreferences(PREF_COMMON, 0).getInt(PREF_KEY_FORMAT, 0));
 
         Spinner resolutionSpinner = (Spinner) findViewById(R.id.resolution_spinner);
         ArrayAdapter<CharSequence> resolutionAdapter = ArrayAdapter.createFromResource(this,
@@ -333,6 +364,7 @@ public class MainActivity extends Activity {
             intent.putExtra(Common.EXTRA_RESULT_CODE, mResultCode);
             intent.putExtra(Common.EXTRA_RESULT_DATA, mResultData);
             intent.putExtra(Common.EXTRA_RECEIVER_IP, mReceiverIp);
+            intent.putExtra(Common.EXTRA_VIDEO_FORMAT, mSelectedFormat);
             intent.putExtra(Common.EXTRA_SCREEN_WIDTH, mSelectedWidth);
             intent.putExtra(Common.EXTRA_SCREEN_HEIGHT, mSelectedHeight);
             intent.putExtra(Common.EXTRA_SCREEN_DPI, mSelectedDpi);
