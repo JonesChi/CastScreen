@@ -22,11 +22,13 @@ import android.os.Messenger;
 import android.util.Log;
 import android.view.Surface;
 
-import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -81,11 +83,19 @@ public class CastService extends Service {
     private MediaCodec mVideoEncoder;
     private MediaCodec.BufferInfo mVideoBufferInfo;
     //private int mTrackIndex = -1;
+    private ServerSocket mServerSocket;
     private Socket mSocket;
     private OutputStream mSocketOutputStream;
-    private BufferedOutputStream mFileOutputStream;
     private IvfWriter mIvfWriter;
     private Handler mDrainHandler = new Handler();
+    private Runnable mStartEncodingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!startScreenCapture()) {
+                Log.e(TAG, "Failed to start capturing screen");
+            }
+        }
+    };
     private Runnable mDrainEncoderRunnable = new Runnable() {
         @Override
         public void run() {
@@ -108,7 +118,7 @@ public class CastService extends Service {
                 }
                 case Common.MSG_STOP_CAST: {
                     stopScreenCapture();
-                    closeSocket();
+                    closeSocket(true);
                     stopSelf();
                 }
             }
@@ -126,7 +136,7 @@ public class CastService extends Service {
             }
             if (Common.ACTION_STOP_CAST.equals(action)) {
                 stopScreenCapture();
-                closeSocket();
+                closeSocket(true);
                 stopSelf();
             }
         }
@@ -146,7 +156,7 @@ public class CastService extends Service {
         super.onDestroy();
         Log.d(TAG, "Destroy service");
         stopScreenCapture();
-        closeSocket();
+        closeSocket(true);
         unregisterReceiver(mBroadcastReceiver);
     }
 
@@ -158,10 +168,14 @@ public class CastService extends Service {
         mReceiverIp = intent.getStringExtra(Common.EXTRA_RECEIVER_IP);
         mResultCode = intent.getIntExtra(Common.EXTRA_RESULT_CODE, -1);
         mResultData = intent.getParcelableExtra(Common.EXTRA_RESULT_DATA);
-        if (mReceiverIp == null || mResultCode != Activity.RESULT_OK || mResultData == null) {
-            Log.e(TAG, "Failed to start service, ip: " + mReceiverIp + ", mResultCode: " + mResultCode + ", mResultData: " + mResultData);
+        Log.d(TAG, "Remove IP: " + mReceiverIp);
+        if (mReceiverIp == null) {
             return START_NOT_STICKY;
         }
+        //if (mResultCode != Activity.RESULT_OK || mResultData == null) {
+        //    Log.e(TAG, "Failed to start service, mResultCode: " + mResultCode + ", mResultData: " + mResultData);
+        //    return START_NOT_STICKY;
+        //}
         mSelectedWidth = intent.getIntExtra(Common.EXTRA_SCREEN_WIDTH, Common.DEFAULT_SCREEN_WIDTH);
         mSelectedHeight = intent.getIntExtra(Common.EXTRA_SCREEN_HEIGHT, Common.DEFAULT_SCREEN_HEIGHT);
         mSelectedDpi = intent.getIntExtra(Common.EXTRA_SCREEN_DPI, Common.DEFAULT_SCREEN_DPI);
@@ -170,13 +184,22 @@ public class CastService extends Service {
         if (mSelectedFormat == null) {
             mSelectedFormat = Common.DEFAULT_VIDEO_MIME_TYPE;
         }
-        if (!createSocket()) {
-            Log.e(TAG, "Failed to create socket to receiver, ip: " + mReceiverIp);
-            return START_NOT_STICKY;
-        }
-        if (!startScreenCapture()) {
-            Log.e(TAG, "Failed to start capture screen");
-            return START_NOT_STICKY;
+        if (mReceiverIp.length() <= 0) {
+            Log.d(TAG, "Start with listen mode");
+            if (!createServerSocket()) {
+                Log.e(TAG, "Failed to create socket to receiver, ip: " + mReceiverIp);
+                return START_NOT_STICKY;
+            }
+        } else {
+            Log.d(TAG, "Start with client mode");
+            if (!createSocket()) {
+                Log.e(TAG, "Failed to create socket to receiver, ip: " + mReceiverIp);
+                return START_NOT_STICKY;
+            }
+            if (!startScreenCapture()) {
+                Log.e(TAG, "Failed to start capture screen");
+                return START_NOT_STICKY;
+            }
         }
         return START_STICKY;
     }
@@ -207,6 +230,7 @@ public class CastService extends Service {
     }
 
     private boolean startScreenCapture() {
+        Log.d(TAG, "mResultCode: " + mResultCode + ", mResultData: " + mResultData);
         if (mResultCode != 0 && mResultData != null) {
             setUpMediaProjection();
             startRecording();
@@ -386,10 +410,90 @@ public class CastService extends Service {
         if (mIvfWriter != null) {
             mIvfWriter = null;
         }
-        mResultCode = 0;
-        mResultData = null;
+        //mResultCode = 0;
+        //mResultData = null;
         mVideoBufferInfo = null;
         //mTrackIndex = -1;
+    }
+
+    private boolean createServerSocket() {
+        Thread th = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    mServerSocket = new ServerSocket(Common.VIEWER_PORT);
+                    while (!Thread.currentThread().isInterrupted() && !mServerSocket.isClosed()) {
+                        mSocket = mServerSocket.accept();
+                        CommunicationThread commThread = new CommunicationThread(mSocket);
+                        new Thread(commThread).start();
+                    }
+                } catch (IOException e) {
+                    Log.e(TAG, "Failed to create server socket or server socket error");
+                    e.printStackTrace();
+                }
+            }
+        });
+        th.start();
+        return true;
+    }
+
+    class CommunicationThread implements Runnable {
+        private Socket mClientSocket;
+
+        public CommunicationThread(Socket clientSocket) {
+            mClientSocket = clientSocket;
+        }
+
+        public void run() {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    BufferedReader input = new BufferedReader(new InputStreamReader(mClientSocket.getInputStream()));
+                    String data = input.readLine();
+                    Log.d(TAG, "Got data from socket: " + data);
+                    if (data == null || !data.equalsIgnoreCase("mirror")) {
+                        mClientSocket.close();
+                        return;
+                    }
+                    mSocketOutputStream = mClientSocket.getOutputStream();
+                    OutputStreamWriter osw = new OutputStreamWriter(mSocketOutputStream);
+                    osw.write(String.format(HTTP_MESSAGE_TEMPLATE, mSelectedWidth, mSelectedHeight));
+                    osw.flush();
+                    mSocketOutputStream.flush();
+                    if (mSelectedFormat.equals(MediaFormat.MIMETYPE_VIDEO_AVC)) {
+                        if (mSelectedWidth == 1280 && mSelectedHeight == 720) {
+                            mSocketOutputStream.write(H264_PREDEFINED_HEADER_1280x720);
+                        } else if (mSelectedWidth == 800 && mSelectedHeight == 480) {
+                            mSocketOutputStream.write(H264_PREDEFINED_HEADER_800x480);
+                        } else {
+                            Log.e(TAG, "Unknown width: " + mSelectedWidth + ", height: " + mSelectedHeight);
+                            mSocketOutputStream.close();
+                            mClientSocket.close();
+                            mClientSocket = null;
+                            mSocketOutputStream = null;
+                        }
+                    } else if (mSelectedFormat.equals(MediaFormat.MIMETYPE_VIDEO_VP8)) {
+                        mIvfWriter = new IvfWriter(mSocketOutputStream, mSelectedWidth, mSelectedHeight);
+                        mIvfWriter.writeHeader();
+                    } else {
+                        Log.e(TAG, "Unknown format: " + mSelectedFormat);
+                        mSocketOutputStream.close();
+                        mClientSocket.close();
+                        mClientSocket = null;
+                        mSocketOutputStream = null;
+                    }
+                    if (mSocketOutputStream != null) {
+                        mHandler.post(mStartEncodingRunnable);
+                    }
+                    return;
+                } catch (UnknownHostException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mClientSocket = null;
+                mSocketOutputStream = null;
+            }
+        }
     }
 
     private boolean createSocket() {
@@ -449,12 +553,26 @@ public class CastService extends Service {
     }
 
     private void closeSocket() {
+        closeSocket(false);
+    }
+
+    private void closeSocket(boolean closeServerSocket) {
         if (mSocket != null) {
             try {
                 mSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+        if (closeServerSocket) {
+            if (mServerSocket != null) {
+                try {
+                    mServerSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            mServerSocket = null;
         }
         mSocket = null;
         mSocketOutputStream = null;

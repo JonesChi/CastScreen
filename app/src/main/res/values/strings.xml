@@ -1,16 +1,14 @@
 <resources>
     <string name="app_name">CastScreen</string>
-
-    <string name="hello_world">Hello world!</string>
-    <string name="select">Select</string>
+    <string name="select">Input Receiver</string>
     <string name="action_start">Start</string>
     <string name="action_stop">Stop</string>
     <string name="connect_failed">Failed to connect to %1$s</string>
     <string name="receiver">Receiver %1$s</string>
-    <string name="no_receiver">No receiver selected</string>
+    <string name="no_receiver">Using server mode</string>
     <string name="casting_screen">Casting screen</string>
-
     <string name="user_cancelled">User cancelled</string>
+    <string name="server_mode">Server mode</string>
 
     <string-array name="format_options">
         <item>H264</item>

@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/CastScreen.iml" filepath="$PROJECT_DIR$/CastScreen.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/castscreen.iml" filepath="$PROJECT_DIR$/castscreen.iml" />
     </modules>
   </component>
 </project>

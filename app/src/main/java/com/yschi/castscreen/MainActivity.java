@@ -151,6 +151,10 @@ public class MainActivity extends Activity {
             }
         });
 
+        // add server mode option
+        mDiscoverAdapter.add(mContext.getString(R.string.server_mode));
+        mDiscoverdMap.put(mContext.getString(R.string.server_mode), "");
+
         mReceiverTextView = (TextView) findViewById(R.id.receiver_textview);
         final EditText ipEditText = (EditText) findViewById(R.id.ip_edittext);
         final Button selectButton = (Button) findViewById(R.id.select_button);
