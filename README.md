@@ -1,6 +1,8 @@
 # CastScreen
 Cast Android screen via WiFi or USB
 
+Demo video: https://youtu.be/D_DSuvFz_sg
+
 ## Requirments
 * Gstreamer 1.0 with H264 decoder (h264parse, avdec_h264) 
 * adb for mirror via USB
