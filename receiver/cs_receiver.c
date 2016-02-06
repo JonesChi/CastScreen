@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
                     memset(data_msg_buf, 0, sizeof(data_msg_buf));
                     len = read(tcp_client_sock, data_msg_buf, sizeof(data_msg_buf));
                     //printf("Receive data len: %d\n", len);
-                    if (len <= 0) {
+                    if (len < 0 || no_data_count > 2) {
                         printf("Failed to receive from tcp client socket, close the socket\n");
                         close(tcp_client_sock);
                         tcp_client_sock = -1;
@@ -325,7 +325,11 @@ int main(int argc, char* argv[])
                         return 0;
 #endif
                     } else {
-                        no_data_count = 0;
+                        if (len > 0) {
+                            no_data_count = 0;
+                        } else {
+			    no_data_count++;
+                        }
                         if (just_connect && strstr(data_msg_buf, "\r\n")) {
                             int width = 800;
                             int height = 480;
@@ -377,7 +381,7 @@ int main(int argc, char* argv[])
                                 snprintf(mime_buf, 70, "video\/x-h264,width=%d,height=%d,framerate=30\/1", width, height);
                                 //snprintf(mime_buf, 70, "video\/x-h264,width=%d,height=%d,framerate=30\/1,stream-format=avc", width, height);
                                 printf("Using cap: %s\n", mime_buf);
-                                const char *command[] = {"gst-launch-0.10", "fdsrc", "!", mime_buf, "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-0.10", "fdsrc", "do-timestamp=true", "!", mime_buf, "!", "vpudec", "framedrop=false", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
 #else
                                 const char *command[] = {"gst-launch-1.0", "fdsrc", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
 #endif
