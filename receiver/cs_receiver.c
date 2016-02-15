@@ -279,15 +279,15 @@ int main(int argc, char* argv[])
                                 strcat(location_buf, "location=");
                                 strcat(location_buf, FIFO_PATH);
 #ifdef VPUDEC
-                                const char *command[] = {"gst-launch-0.10", "filesrc", location_buf, "!", "video\/x-h264,width=800,height=480,framerate=30\/1", "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-0.10", "filesrc", location_buf, "do-timestamp=true", "!", "video\/x-h264,width=800,height=480,framerate=30\/1", "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
 #else
-                                const char *command[] = {"gst-launch-1.0", "filesrc", location_buf, "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-1.0", "filesrc", location_buf, "do-timestamp=true", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
 #endif
 #else
 #ifdef VPUDEC
-                                const char *command[] = {"gst-launch-0.10", "fdsrc", "!", "video\/x-h264,width=800,height=480,framerate=30\/1", "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-0.10", "fdsrc", "do-timestamp=true", "!", "video\/x-h264,width=800,height=480,framerate=30\/1", "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
 #else
-                                const char *command[] = {"gst-launch-1.0", "fdsrc", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-1.0", "fdsrc", "do-timestamp=true", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
                                 //const char *command[] = {"gst-launch-1.0", "fdsrc", "!", "video\/x-h264,width=800,height=480,framerate=0\/1,stream-format=avc", "!", "avdec_h264", "!", gst_sink, NULL};
 #endif
 #endif
@@ -371,9 +371,9 @@ int main(int argc, char* argv[])
                                 snprintf(mime_buf, 70, "video\/x-h264,width=%d,height=%d,framerate=30\/1", width, height);
                                 //snprintf(mime_buf, 70, "video\/x-h264,width=%d,height=%d,framerate=30\/1,stream-format=avc", width, height);
                                 printf("Using cap: %s\n", mime_buf);
-                                const char *command[] = {"gst-launch-0.10", "filesrc", location_buf, "!", mime_buf, "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-0.10", "filesrc", location_buf, "do-timestamp=true", "!", mime_buf, "!", "vpudec", "framedrop=true", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
 #else
-                                const char *command[] = {"gst-launch-1.0", "filesrc", location_buf, "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-1.0", "filesrc", location_buf, "do-timestamp=true", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
 #endif
 #else
 #ifdef VPUDEC
@@ -383,7 +383,7 @@ int main(int argc, char* argv[])
                                 printf("Using cap: %s\n", mime_buf);
                                 const char *command[] = {"gst-launch-0.10", "fdsrc", "do-timestamp=true", "!", mime_buf, "!", "vpudec", "framedrop=false", "frame-plus=1", "low-latency=true", "!", gst_sink, NULL};
 #else
-                                const char *command[] = {"gst-launch-1.0", "fdsrc", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
+                                const char *command[] = {"gst-launch-1.0", "fdsrc", "do-timestamp=true", "!", "h264parse", "!", "decodebin", "!", gst_sink, NULL};
 #endif
 #endif
 
