@@ -38,8 +38,8 @@ def connect_to_server():
 
 	if SAVE_TO_FILE:
             f = open('video_client.raw', 'wb')
-        #p = Popen(['ffplay', '-framerate', '50', '-'], stdin=PIPE, stdout=PIPE)
-        p = Popen(['gst-launch-1.0', 'fdsrc', '!', 'h264parse', '!', 'avdec_h264', '!', 'autovideosink'], stdin=PIPE, stdout=PIPE)
+        p = Popen(['ffplay', '-framerate', '30', '-'], stdin=PIPE, stdout=PIPE)
+        #p = Popen(['gst-launch-1.0', 'fdsrc', '!', 'h264parse', '!', 'avdec_h264', '!', 'autovideosink'], stdin=PIPE, stdout=PIPE)
         skiped_metadata = False
         while True:
             data = sock.recv(bufferSize)

@@ -306,6 +306,11 @@ int main(int argc, char* argv[])
                     memset(data_msg_buf, 0, sizeof(data_msg_buf));
                     len = read(tcp_client_sock, data_msg_buf, sizeof(data_msg_buf));
                     //printf("Receive data len: %d\n", len);
+                    if (len > 0) {
+                        no_data_count = 0;
+                    } else {
+			no_data_count++;
+                    }
                     if (len < 0 || no_data_count > 2) {
                         printf("Failed to receive from tcp client socket, close the socket\n");
                         close(tcp_client_sock);
@@ -325,11 +330,6 @@ int main(int argc, char* argv[])
                         return 0;
 #endif
                     } else {
-                        if (len > 0) {
-                            no_data_count = 0;
-                        } else {
-			    no_data_count++;
-                        }
                         if (just_connect && strstr(data_msg_buf, "\r\n")) {
                             int width = 800;
                             int height = 480;
