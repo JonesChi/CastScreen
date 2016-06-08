@@ -330,10 +330,11 @@ public class CastService extends Service {
                 if (encodedData == null) {
                     throw new RuntimeException("couldn't fetch buffer at index " + bufferIndex);
                 }
-
-                if ((mVideoBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    mVideoBufferInfo.size = 0;
-                }
+                // Fixes playability issues on certain h264 decoders including omxh264dec on raspberry pi
+                // See http://stackoverflow.com/a/26684736/4683709 for explanation
+                //if ((mVideoBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                //    mVideoBufferInfo.size = 0;
+                //}
 
                 //Log.d(TAG, "Video buffer offset: " + mVideoBufferInfo.offset + ", size: " + mVideoBufferInfo.size);
                 if (mVideoBufferInfo.size != 0) {
