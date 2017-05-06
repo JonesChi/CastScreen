@@ -8,6 +8,7 @@ Demo video: https://youtu.be/D_DSuvFz_sg
 * adb for mirror via USB
 
 ## With native receiver
+* If you are not on an ARM machine, ignore outputs from *_arm targets, or remove them from the Makefile.
 * Compile the receiver
 ```
 $ cd receiver
