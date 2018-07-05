@@ -23,6 +23,7 @@
 #include <sys/select.h> 
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -59,7 +60,7 @@ pid_t popen2(const char **command, int *infp, int *outfp)
         close(p_stdout[READ]);
         dup2(p_stdout[WRITE], WRITE);
 
-        execvp((const char *)*command, command);
+        execvp((const char *)*command,(char* const*) command);
         perror("execvp");
         exit(1);
     }
