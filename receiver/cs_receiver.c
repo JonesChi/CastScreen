@@ -23,6 +23,7 @@
 #include <sys/select.h> 
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -59,7 +60,7 @@ pid_t popen2(const char **command, int *infp, int *outfp)
         close(p_stdout[READ]);
         dup2(p_stdout[WRITE], WRITE);
 
-        execvp((const char *)*command, command);
+        execvp((const char *)*command,(char* const*) command);
         perror("execvp");
         exit(1);
     }
@@ -117,10 +118,11 @@ int main(int argc, char* argv[])
     int tcp_sock = -1;
     int tcp_client_sock = -1;
     int max_sock = -1;
+#ifndef CLIENT_MODE
     struct sockaddr_in my_addr;
+#endif
     struct sockaddr_in peer_addr;
-    struct sockaddr_in receiver_addr;
-    int addr_len;
+    unsigned int addr_len;
     char resp_msg_buf[512];
     char data_msg_buf[1024];
     int len;
